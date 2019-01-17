@@ -1,4 +1,16 @@
 # Solar Calculator
+
+## Build Information
+
+1. Before you run your application, you need a Google Maps API key. Follow the directions here: [Link](https://developers.google.com/maps/documentation/android/start#get-key)
+2. Create a `gradle.properties` file in your project root with the following variables (replace the `<...>` with your own data)
+    ```
+    AndroidProject.signing=<path_to_keystore>
+    GOOGLE_MAPS_KEY_DEBUG=<google_maps_debug_key>
+    GOOGLE_MAPS_KEY_RELEASE=<google_maps_release_key>
+    ```
+3. Run the app
+
 ## What we'll build
 One of the crucial elements of pursuing Photography is understanding to use Earth's natural light sources ( *Sun and Moon* ) to our advantage. A trick to naturally take better photographs is to shoot in the [Golden Hour](https://en.wikipedia.org/wiki/Golden_hour_(photography)). As the name suggests this begins approximately an hour before sunset. 
 
