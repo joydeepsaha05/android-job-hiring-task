@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    tools:ignore="ContentDescription">
+    tools:ignore="UnusedAttribute">
 
     <android.support.v7.widget.CardView
         android:layout_width="match_parent"
@@ -12,17 +12,47 @@
         android:layout_margin="16dp"
         android:elevation="10dp">
 
-        <EditText
-            android:id="@+id/search_edit_text"
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@android:color/transparent"
-            android:hint="@string/search_location"
-            android:imeOptions="actionDone"
-            android:inputType="text"
-            android:minHeight="48dp"
-            android:padding="16dp"
-            android:singleLine="true" />
+            android:layout_height="wrap_content">
+
+            <EditText
+                android:id="@+id/search_edit_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_toStartOf="@id/image_pin"
+                android:background="@android:color/transparent"
+                android:hint="@string/search_location"
+                android:imeOptions="actionDone"
+                android:inputType="text"
+                android:minHeight="48dp"
+                android:padding="16dp"
+                android:singleLine="true" />
+
+            <ImageView
+                android:id="@+id/image_pin"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_centerVertical="true"
+                android:layout_toStartOf="@id/image_bookmark"
+                android:contentDescription="@string/save_current_location"
+                android:src="@drawable/ic_pin_drop"
+                android:tooltipText="@string/save_current_location" />
+
+            <ImageView
+                android:id="@+id/image_bookmark"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:contentDescription="@string/show_saved_locations"
+                android:src="@drawable/ic_bookmark"
+                android:tooltipText="@string/show_saved_locations" />
+
+        </RelativeLayout>
 
     </android.support.v7.widget.CardView>
 
@@ -55,166 +85,6 @@
         android:contentDescription="@string/gps_icon"
         android:src="@drawable/ic_gps_fixed" />
 
-    <LinearLayout
-        android:id="@+id/bottom_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:background="#FFFFFF"
-        android:orientation="vertical"
-        android:paddingLeft="16dp"
-        android:paddingTop="16dp"
-        android:paddingRight="16dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:weightSum="7.5">
-
-            <ImageView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1.5"
-                android:src="@drawable/ic_sun" />
-
-            <ImageView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:contentDescription="@string/sunrise_icon"
-                android:src="@drawable/ic_arrow_upward"
-                android:tint="@color/amber" />
-
-            <TextView
-                android:id="@+id/tv_sunrise"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:textSize="18sp" />
-
-            <ImageView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:contentDescription="@string/sunset_icon"
-                android:rotation="180"
-                android:src="@drawable/ic_arrow_upward"
-                android:tint="@color/amber" />
-
-            <TextView
-                android:id="@+id/tv_sunset"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:textSize="18sp" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="horizontal"
-            android:weightSum="7.5">
-
-            <ImageView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1.5"
-                android:contentDescription="@string/moon_icon"
-                android:src="@drawable/ic_moon" />
-
-            <ImageView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:contentDescription="@string/moonrise_icon"
-                android:src="@drawable/ic_arrow_upward"
-                android:tint="@color/lightBlue" />
-
-            <TextView
-                android:id="@+id/tv_moon_rise"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:textSize="18sp" />
-
-            <ImageView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:contentDescription="@string/moonset_icon"
-                android:rotation="180"
-                android:src="@drawable/ic_arrow_upward"
-                android:tint="@color/lightBlue" />
-
-            <TextView
-                android:id="@+id/tv_moon_set"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:textSize="18sp" />
-
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="10dp"
-            android:text="@string/all_times_in_utc"
-            android:textSize="18sp" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="16dp"
-            android:background="#000000" />
-
-        <TextView
-            android:id="@+id/tv_date"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="16dp"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:weightSum="10">
-
-            <ImageView
-                android:id="@+id/image_previous_date"
-                style="?android:attr/borderlessButtonStyle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:rotation="180"
-                android:src="@drawable/ic_play_arrow" />
-
-            <ImageView
-                android:id="@+id/image_reset_date"
-                style="?android:attr/borderlessButtonStyle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:src="@drawable/ic_replay" />
-
-            <ImageView
-                android:id="@+id/image_next_date"
-                style="?android:attr/borderlessButtonStyle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:src="@drawable/ic_play_arrow" />
-
-        </LinearLayout>
-
-    </LinearLayout>
+    <include layout="@layout/layout_phase_time_view" />
 
 </RelativeLayout>

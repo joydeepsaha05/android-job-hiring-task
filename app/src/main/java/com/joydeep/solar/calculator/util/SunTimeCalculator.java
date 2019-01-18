@@ -11,9 +11,9 @@ import java.util.concurrent.TimeUnit;
 
 import static java.lang.Math.floor;
 
-public class PhaseTimeCalculator {
+public class SunTimeCalculator {
 
-    private final String TAG = "PhaseTimeCalculator";
+    private final String TAG = "SunTimeCalculator";
     private double degToRadFactor = Math.PI / 180;
     private double radToDegFactor = 180 / Math.PI;
     private double zenith = degToRadFactor * (90 + (float) 50 / 60); // Using official zenith

@@ -7,12 +7,10 @@ import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
-import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
-import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -34,16 +32,20 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.joydeep.solar.calculator.R;
 import com.joydeep.solar.calculator.model.CustomDate;
+import com.joydeep.solar.calculator.realm.RealmLocation;
+import com.joydeep.solar.calculator.realm.RealmSingleton;
+import com.joydeep.solar.calculator.util.MoonTimeCalculator;
 import com.joydeep.solar.calculator.util.PermissionHelper;
-import com.joydeep.solar.calculator.util.PhaseTimeCalculator;
+import com.joydeep.solar.calculator.util.SavedLocationsDialog;
+import com.joydeep.solar.calculator.util.SunTimeCalculator;
 import com.joydeep.solar.calculator.util.UIUtils;
 
 import java.util.List;
+
+import io.realm.Realm;
 
 import static com.joydeep.solar.calculator.util.PermissionHelper.LOCATION_REQ_CODE;
 
@@ -64,12 +66,11 @@ public class MapsActivity extends FragmentActivity implements
     private LocationRequest mLocationRequest;
     private FusedLocationProviderClient fusedLocationClient;
     private CustomDate customDate;
-    private LatLng currentLatLng = new LatLng(0, 0);
 
     private SupportMapFragment mapFragment;
     private EditText searchEditText;
-    private ImageView mapGPSIcon, dateNextImage, datePreviousImage, dateResetImage;
-    private ImageView mapMarkerImage;
+    private ImageView mapGPSIcon, dateNextImage, datePreviousImage, dateResetImage,
+            saveLocImage, showSavedLocImage;
     private TextView dateTV, sunriseTV, sunsetTV, moonriseTV, moonsetTV;
 
     @Override
@@ -79,7 +80,6 @@ public class MapsActivity extends FragmentActivity implements
 
         mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         searchEditText = findViewById(R.id.search_edit_text);
-        mapMarkerImage = findViewById(R.id.image_map_marker);
         mapGPSIcon = findViewById(R.id.image_gps);
         dateTV = findViewById(R.id.tv_date);
         dateNextImage = findViewById(R.id.image_next_date);
@@ -89,6 +89,8 @@ public class MapsActivity extends FragmentActivity implements
         sunsetTV = findViewById(R.id.tv_sunset);
         moonriseTV = findViewById(R.id.tv_moon_rise);
         moonsetTV = findViewById(R.id.tv_moon_set);
+        saveLocImage = findViewById(R.id.image_pin);
+        showSavedLocImage = findViewById(R.id.image_bookmark);
 
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks(this)
@@ -122,64 +124,12 @@ public class MapsActivity extends FragmentActivity implements
         }
     }
 
-    private void setUpViews() {
-        customDate = new CustomDate(this);
-
-        UIUtils.setupClearButtonWithAction(searchEditText);
-
-        searchEditText.setOnEditorActionListener(new EditText.OnEditorActionListener() {
-            @Override
-            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                if (actionId == EditorInfo.IME_ACTION_DONE) {
-                    onMapSearch(v.getText().toString());
-                    UIUtils.hideKeyboard(getApplicationContext(), searchEditText);
-                    return true;
-                }
-                return false;
-            }
-        });
-
-        mapGPSIcon.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (new PermissionHelper().checkAndRequestPermissions(MapsActivity.this)) {
-                    getCurrentLocation();
-                }
-            }
-        });
-
-        dateTV.setText(customDate.toString());
-
-        dateNextImage.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dateTV.setText(customDate.nextDay());
-            }
-        });
-
-        datePreviousImage.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dateTV.setText(customDate.previousDay());
-            }
-        });
-
-        dateResetImage.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dateTV.setText(customDate.reset());
-            }
-        });
-    }
-
     /**
      * Sets up the map if it is possible to do so (i.e., the Google Play services APK is correctly
      * installed)
      */
     private void setUpMapIfNeeded() {
-        // Do a null check to confirm that we have not already instantiated the map.
         if (mMap == null) {
-            // Try to obtain the map from the SupportMapFragment.
             ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
                     .getMapAsync(this);
         }
@@ -231,15 +181,7 @@ public class MapsActivity extends FragmentActivity implements
 
     @Override
     public void onCameraIdle() {
-        currentLatLng = mMap.getCameraPosition().target;
-        Log.d(TAG, currentLatLng.toString());
-        PhaseTimeCalculator phaseTimeCalculator = new PhaseTimeCalculator();
-        String sunriseTime = phaseTimeCalculator.phaseTimeCalculator(customDate.getTimeInMillis(), currentLatLng.latitude,
-                currentLatLng.longitude, true);
-        sunriseTV.setText(sunriseTime);
-        String sunsetTime = phaseTimeCalculator.phaseTimeCalculator(customDate.getTimeInMillis(), currentLatLng.latitude,
-                currentLatLng.longitude, false);
-        sunsetTV.setText(sunsetTime);
+        updateTimes();
     }
 
     @Override
@@ -268,6 +210,88 @@ public class MapsActivity extends FragmentActivity implements
                     }
                 }
         }
+    }
+
+    private void setUpViews() {
+        customDate = new CustomDate(this);
+
+        UIUtils.setupClearButtonWithAction(searchEditText);
+
+        searchEditText.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                onMapSearch(v.getText().toString());
+                UIUtils.hideKeyboard(getApplicationContext(), searchEditText);
+                return true;
+            }
+            return false;
+        });
+
+        mapGPSIcon.setOnClickListener(v -> {
+            if (new PermissionHelper().checkAndRequestPermissions(MapsActivity.this)) {
+                getCurrentLocation();
+            }
+        });
+
+        dateTV.setText(customDate.toString());
+
+        dateNextImage.setOnClickListener(v -> {
+            dateTV.setText(customDate.nextDay());
+            updateTimes();
+        });
+
+        datePreviousImage.setOnClickListener(v -> {
+            dateTV.setText(customDate.previousDay());
+            updateTimes();
+        });
+
+        dateResetImage.setOnClickListener(v -> {
+            dateTV.setText(customDate.reset());
+            updateTimes();
+        });
+
+        saveLocImage.setOnClickListener(v -> {
+            LatLng latLng = mMap.getCameraPosition().target;
+            Realm realm = RealmSingleton.getInstance().getRealm();
+            realm.executeTransactionAsync(realm1 -> {
+                RealmLocation realmLocation = realm1.where(RealmLocation.class)
+                        .equalTo("latitude", latLng.latitude)
+                        .equalTo("longitude", latLng.longitude)
+                        .findFirst();
+                if (realmLocation == null) {
+                    // Location does not exist in DB
+                    realmLocation = realm1.createObject(RealmLocation.class);
+                    realmLocation.setLocation(latLng);
+                    Log.d(TAG, "Saved Location: " + latLng.latitude + ", " + latLng.longitude);
+                } else {
+                    Log.d(TAG, "Location already exists in DB, skipping");
+                }
+            }, () -> Toast.makeText(MapsActivity.this, R.string.loc_saved,
+                    Toast.LENGTH_SHORT).show());
+        });
+
+        showSavedLocImage.setOnClickListener(
+                v -> new SavedLocationsDialog().showDialog(this,
+                        realmLocation -> handleNewLocation(realmLocation.getLocation())));
+    }
+
+    private void updateTimes() {
+        LatLng currentLatLng = mMap.getCameraPosition().target;
+        Log.d(TAG, currentLatLng.toString());
+        SunTimeCalculator sunTimeCalculator = new SunTimeCalculator();
+        String sunriseTime = sunTimeCalculator.phaseTimeCalculator(customDate.getTimeInMillis(),
+                currentLatLng.latitude, currentLatLng.longitude, true);
+        sunriseTV.setText(sunriseTime);
+        String sunsetTime = sunTimeCalculator.phaseTimeCalculator(customDate.getTimeInMillis(),
+                currentLatLng.latitude, currentLatLng.longitude, false);
+        sunsetTV.setText(sunsetTime);
+
+        MoonTimeCalculator moonTimeCalculator = new MoonTimeCalculator();
+        String moonRiseTime = moonTimeCalculator.moonTime(customDate.getTimeInMillis(),
+                currentLatLng.latitude, currentLatLng.longitude, true);
+        moonriseTV.setText(moonRiseTime);
+        String moonSetTime = moonTimeCalculator.moonTime(customDate.getTimeInMillis(),
+                currentLatLng.latitude, currentLatLng.longitude, false);
+        moonsetTV.setText(moonSetTime);
     }
 
     @SuppressLint("MissingPermission")
@@ -302,24 +326,16 @@ public class MapsActivity extends FragmentActivity implements
         SettingsClient client = LocationServices.getSettingsClient(this);
         Task<LocationSettingsResponse> task = client.checkLocationSettings(builder.build());
 
-        task.addOnSuccessListener(this, new OnSuccessListener<LocationSettingsResponse>() {
-            @Override
-            public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
-                getCurrentLocation();
-            }
-        });
+        task.addOnSuccessListener(this, locationSettingsResponse -> getCurrentLocation());
 
-        task.addOnFailureListener(this, new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                if (e instanceof ResolvableApiException) {
-                    try {
-                        ResolvableApiException resolvable = (ResolvableApiException) e;
-                        resolvable.startResolutionForResult(MapsActivity.this,
-                                REQUEST_LOCATION_CODE);
-                    } catch (IntentSender.SendIntentException sendEx) {
-                        // Ignore this error.
-                    }
+        task.addOnFailureListener(this, e -> {
+            if (e instanceof ResolvableApiException) {
+                try {
+                    ResolvableApiException resolvable = (ResolvableApiException) e;
+                    resolvable.startResolutionForResult(MapsActivity.this,
+                            REQUEST_LOCATION_CODE);
+                } catch (IntentSender.SendIntentException sendEx) {
+                    // Ignore this error.
                 }
             }
         });
@@ -328,19 +344,14 @@ public class MapsActivity extends FragmentActivity implements
     @SuppressLint("MissingPermission")
     private void getCurrentLocation() {
         fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                    @Override
-                    public void onSuccess(Location location) {
-                        // Got last known location. In some rare situations, this can be null.
-                        if (location != null) {
-                            handleNewLocation(
-                                    new LatLng(location.getLatitude(), location.getLongitude()));
-                        } else {
-                            turnGPSOn();
-                        }
+                .addOnSuccessListener(this, location -> {
+                    // Got last known location. In some rare situations, this can be null.
+                    if (location != null) {
+                        handleNewLocation(
+                                new LatLng(location.getLatitude(), location.getLongitude()));
+                    } else {
+                        turnGPSOn();
                     }
                 });
     }
-
-
 }
