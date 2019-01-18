@@ -1,5 +1,7 @@
 package com.joydeep.solar.calculator.util;
 
+import android.util.Log;
+
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -14,13 +16,14 @@ import static java.lang.Math.tan;
 
 public class MoonTimeCalculator {
 
+    private final String TAG = "MoonTimeCalculator";
     private double dayMs = 1000 * 60 * 60 * 24;
     private double J1970 = 2440588;
     private double J2000 = 2451545;
     private double rad = PI / 180;
     private double e = rad * 23.4397; // obliquity of the Earth
 
-    public String moonTime(long timeInMillis, double lat, double lng, boolean getRise) {
+    public double moonTime(long timeInMillis, double lat, double lng, boolean getRise) {
 
         Calendar c = Calendar.getInstance();
         c.setTime(new Date(timeInMillis));
@@ -70,20 +73,29 @@ public class MoonTimeCalculator {
             h0 = h2;
         }
 
-        String pattern = "hh:mm a";
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern, Locale.getDefault());
-        simpleDateFormat.setTimeZone(TimeZone.getTimeZone("gmt"));
+        String hourPattern = "HH";
+        String minutePattern = "mm";
+        SimpleDateFormat hourFormat = new SimpleDateFormat(hourPattern, Locale.getDefault());
+        SimpleDateFormat minuteFormat = new SimpleDateFormat(minutePattern, Locale.getDefault());
+        hourFormat.setTimeZone(TimeZone.getTimeZone("gmt"));
+        minuteFormat.setTimeZone(TimeZone.getTimeZone("gmt"));
 
         if (getRise) {
             if (rise != Double.POSITIVE_INFINITY) {
-                return simpleDateFormat.format(hoursLater(t, rise));
+                double hours = Double.parseDouble(hourFormat.format(hoursLater(t, rise))) +
+                        Double.parseDouble(minuteFormat.format(hoursLater(t, rise))) / 60;
+                Log.d(TAG, String.valueOf(hours));
+                return hours;
             }
-            return "-";
+            return Double.POSITIVE_INFINITY;
         } else {
             if (set != Double.POSITIVE_INFINITY) {
-                return simpleDateFormat.format(hoursLater(t, set));
+                double hours = Double.parseDouble(hourFormat.format(hoursLater(t, set))) +
+                        Double.parseDouble(minuteFormat.format(hoursLater(t, set))) / 60;
+                Log.d(TAG, String.valueOf(hours));
+                return hours;
             }
-            return "-";
+            return Double.POSITIVE_INFINITY;
         }
     }
 

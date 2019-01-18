@@ -5,7 +5,6 @@ import android.content.Context;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.MotionEvent;
-import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 
@@ -20,6 +19,32 @@ public class UIUtils {
             imm.hideSoftInputFromWindow(editText.getWindowToken(), 0);
         }
         editText.clearFocus();
+    }
+
+    public static String formatTime(double timeInHours) {
+        if (timeInHours == Double.POSITIVE_INFINITY) {
+            return "-";
+        }
+        if (timeInHours >= 24) {
+            timeInHours -= 24;
+        } else if (timeInHours < 0) {
+            timeInHours += 24;
+        }
+        String time = "";
+        String postfix;
+        int hours = (int) timeInHours;
+        int minutes = (int) ((timeInHours - hours) * 60);
+        if (hours >= 12) {
+            if (hours != 12) {
+                hours -= 12;
+            }
+            postfix = " PM";
+        } else {
+            postfix = " AM";
+        }
+        time += hours + ":";
+        time += minutes < 10 ? "0" + minutes : minutes;
+        return time + postfix;
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -42,17 +67,14 @@ public class UIUtils {
             }
         });
 
-        editText.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                if (event.getAction() == MotionEvent.ACTION_UP) {
-                    if (event.getRawX() >= (editText.getRight() - editText.getCompoundPaddingRight())) {
-                        editText.setText("");
-                        return true;
-                    }
+        editText.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                if (event.getRawX() >= (editText.getRight() - editText.getCompoundPaddingRight())) {
+                    editText.setText("");
+                    return true;
                 }
-                return false;
             }
+            return false;
         });
     }
 }

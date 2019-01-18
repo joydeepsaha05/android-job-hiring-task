@@ -3,11 +3,7 @@ package com.joydeep.solar.calculator.util;
 import android.text.format.DateFormat;
 import android.util.Log;
 
-import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 
 import static java.lang.Math.floor;
 
@@ -18,7 +14,7 @@ public class SunTimeCalculator {
     private double radToDegFactor = 180 / Math.PI;
     private double zenith = degToRadFactor * (90 + (float) 50 / 60); // Using official zenith
 
-    public String phaseTimeCalculator(long timeInMillis, double latitude, double longitude,
+    public double phaseTimeCalculator(long timeInMillis, double latitude, double longitude,
                                       boolean isRisingTime) {
 
         // 1. Calculate the day of the year
@@ -57,10 +53,10 @@ public class SunTimeCalculator {
         double cosH = sunLocalHourAngle(sinDec, latitude, cosDec);
         if (cosH > 1 && isRisingTime) {
             // The sun never rises on this location(on the specified date)
-            return "-";
+            return Double.POSITIVE_INFINITY;
         } else if (cosH < -1 && !isRisingTime) {
             // The sun never sets on this location(on the specified date)
-            return "-";
+            return Double.POSITIVE_INFINITY;
         }
 
         // 7b. Finish calculating H and convert into hours
@@ -85,10 +81,7 @@ public class SunTimeCalculator {
         }
         Log.d(TAG, "UT = " + UT);
 
-        // 10. Convert UT value to local time zone of latitude/longitude
-        //double localT = UT + getLocalOffset();
-
-        return formatTime(UT);
+        return UT;
     }
 
     private double getDayOfYear(double day, double month, double year) {
@@ -140,32 +133,5 @@ public class SunTimeCalculator {
             degree -= 360;
         }
         return degree;
-    }
-
-    private long getLocalOffset() {
-        Calendar mCalendar = new GregorianCalendar();
-        TimeZone mTimeZone = mCalendar.getTimeZone();
-        long GMTOffset = mTimeZone.getRawOffset() +
-                (mTimeZone.inDaylightTime(new Date()) ? mTimeZone.getDSTSavings() : 0);
-        Log.d(TAG, String.format("GMT offset is %s hours", TimeUnit.HOURS.convert(GMTOffset, TimeUnit.MILLISECONDS)));
-        return TimeUnit.HOURS.convert(GMTOffset, TimeUnit.MILLISECONDS);
-    }
-
-    private String formatTime(double timeInHours) {
-        String time = "";
-        String postfix;
-        int hours = (int) timeInHours;
-        int minutes = (int) ((timeInHours - hours) * 60);
-        if (hours >= 12) {
-            if (hours != 12) {
-                hours -= 12;
-            }
-            postfix = " PM";
-        } else {
-            postfix = " AM";
-        }
-        time += hours + ":";
-        time += minutes < 10 ? "0" + minutes : minutes;
-        return time + postfix;
     }
 }

@@ -1,4 +1,4 @@
-package com.joydeep.solar.calculator.util;
+package com.joydeep.solar.calculator.helper;
 
 import android.Manifest;
 import android.content.Context;

@@ -1,5 +1,7 @@
 package com.joydeep.solar.calculator.realm;
 
+import android.support.annotation.NonNull;
+
 import com.google.android.gms.maps.model.LatLng;
 
 import java.util.Locale;
@@ -20,6 +22,7 @@ public class RealmLocation extends RealmObject {
         longitude = latLng.longitude;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return String.format(Locale.getDefault(), "%.2f, %.2f", latitude, longitude);

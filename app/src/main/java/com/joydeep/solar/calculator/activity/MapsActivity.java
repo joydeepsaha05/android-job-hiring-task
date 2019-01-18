@@ -2,6 +2,9 @@ package com.joydeep.solar.calculator.activity;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
@@ -33,21 +36,30 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.Task;
+import com.google.maps.PendingResult;
 import com.joydeep.solar.calculator.R;
+import com.joydeep.solar.calculator.helper.PermissionHelper;
+import com.joydeep.solar.calculator.helper.SharedPrefHelper;
 import com.joydeep.solar.calculator.model.CustomDate;
 import com.joydeep.solar.calculator.realm.RealmLocation;
 import com.joydeep.solar.calculator.realm.RealmSingleton;
+import com.joydeep.solar.calculator.util.AlarmReceiver;
 import com.joydeep.solar.calculator.util.MoonTimeCalculator;
-import com.joydeep.solar.calculator.util.PermissionHelper;
 import com.joydeep.solar.calculator.util.SavedLocationsDialog;
 import com.joydeep.solar.calculator.util.SunTimeCalculator;
+import com.joydeep.solar.calculator.util.TimeZoneCalculator;
 import com.joydeep.solar.calculator.util.UIUtils;
 
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 
 import io.realm.Realm;
 
-import static com.joydeep.solar.calculator.util.PermissionHelper.LOCATION_REQ_CODE;
+import static com.joydeep.solar.calculator.helper.PermissionHelper.LOCATION_REQ_CODE;
 
 public class MapsActivity extends FragmentActivity implements
         GoogleApiClient.ConnectionCallbacks,
@@ -71,7 +83,7 @@ public class MapsActivity extends FragmentActivity implements
     private EditText searchEditText;
     private ImageView mapGPSIcon, dateNextImage, datePreviousImage, dateResetImage,
             saveLocImage, showSavedLocImage;
-    private TextView dateTV, sunriseTV, sunsetTV, moonriseTV, moonsetTV;
+    private TextView dateTV, sunriseTV, sunsetTV, moonriseTV, moonsetTV, timezoneTV;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,6 +103,7 @@ public class MapsActivity extends FragmentActivity implements
         moonsetTV = findViewById(R.id.tv_moon_set);
         saveLocImage = findViewById(R.id.image_pin);
         showSavedLocImage = findViewById(R.id.image_bookmark);
+        timezoneTV = findViewById(R.id.tv_timezone);
 
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks(this)
@@ -212,6 +225,9 @@ public class MapsActivity extends FragmentActivity implements
         }
     }
 
+    /**
+     * Initializes views with data and sets onClickListeners where required
+     */
     private void setUpViews() {
         customDate = new CustomDate(this);
 
@@ -278,20 +294,23 @@ public class MapsActivity extends FragmentActivity implements
         LatLng currentLatLng = mMap.getCameraPosition().target;
         Log.d(TAG, currentLatLng.toString());
         SunTimeCalculator sunTimeCalculator = new SunTimeCalculator();
-        String sunriseTime = sunTimeCalculator.phaseTimeCalculator(customDate.getTimeInMillis(),
+        double sunriseTime = sunTimeCalculator.phaseTimeCalculator(customDate.getTimeInMillis(),
                 currentLatLng.latitude, currentLatLng.longitude, true);
-        sunriseTV.setText(sunriseTime);
-        String sunsetTime = sunTimeCalculator.phaseTimeCalculator(customDate.getTimeInMillis(),
+        sunriseTV.setText(UIUtils.formatTime(sunriseTime));
+        double sunsetTime = sunTimeCalculator.phaseTimeCalculator(customDate.getTimeInMillis(),
                 currentLatLng.latitude, currentLatLng.longitude, false);
-        sunsetTV.setText(sunsetTime);
+        sunsetTV.setText(UIUtils.formatTime(sunsetTime));
 
         MoonTimeCalculator moonTimeCalculator = new MoonTimeCalculator();
-        String moonRiseTime = moonTimeCalculator.moonTime(customDate.getTimeInMillis(),
+        double moonRiseTime = moonTimeCalculator.moonTime(customDate.getTimeInMillis(),
                 currentLatLng.latitude, currentLatLng.longitude, true);
-        moonriseTV.setText(moonRiseTime);
-        String moonSetTime = moonTimeCalculator.moonTime(customDate.getTimeInMillis(),
+        moonriseTV.setText(UIUtils.formatTime(moonRiseTime));
+        double moonSetTime = moonTimeCalculator.moonTime(customDate.getTimeInMillis(),
                 currentLatLng.latitude, currentLatLng.longitude, false);
-        moonsetTV.setText(moonSetTime);
+        moonsetTV.setText(UIUtils.formatTime(moonSetTime));
+
+        timezoneTV.setText(getString(R.string.all_times_in_utc));
+        setLocalTimeZone(currentLatLng, sunriseTime, sunsetTime, moonRiseTime, moonSetTime);
     }
 
     @SuppressLint("MissingPermission")
@@ -349,9 +368,99 @@ public class MapsActivity extends FragmentActivity implements
                     if (location != null) {
                         handleNewLocation(
                                 new LatLng(location.getLatitude(), location.getLongitude()));
+                        SharedPrefHelper.setSharedPreferenceString(this,
+                                SharedPrefHelper.LATITUDE_PREF_KEY, String.valueOf(location.getLatitude()));
+                        SharedPrefHelper.setSharedPreferenceString(this,
+                                SharedPrefHelper.LONGITUDE_PREF_KEY, String.valueOf(location.getLongitude()));
+                        setNotification();
                     } else {
                         turnGPSOn();
                     }
                 });
+    }
+
+    private void setLocalTimeZone(LatLng latLng, final double sunrise, final double sunset,
+                                  final double moonrise, final double moonset) {
+        new TimeZoneCalculator(getString(R.string.GOOGLE_MAPS_KEY)).calculateTimeZone(latLng,
+                new PendingResult.Callback<TimeZone>() {
+                    @Override
+                    public void onResult(TimeZone result) {
+                        Log.d(TAG, "Location offset in millis: " + result.getRawOffset());
+                        runOnUiThread(() -> {
+                            if (mMap.getCameraPosition().target.latitude != latLng.latitude &&
+                                    mMap.getCameraPosition().target.longitude != latLng.longitude) {
+                                return;
+                            }
+                            long minutes = TimeUnit.MILLISECONDS.toMinutes(result.getRawOffset());
+                            Log.d(TAG, "Location offset in mins: " + minutes);
+                            double offset = (double) minutes / 60;
+                            Log.d(TAG, "Location offset in hours: " + offset);
+
+                            sunriseTV.setText(UIUtils.formatTime(sunrise + offset));
+                            sunsetTV.setText(UIUtils.formatTime(sunset + offset));
+                            moonriseTV.setText(UIUtils.formatTime(moonrise + offset));
+                            moonsetTV.setText(UIUtils.formatTime(moonset + offset));
+
+                            String timezone = "All times in GMT " + ((offset < 0) ? "" : "+") +
+                                    minutes / 60 + ":" +
+                                    (minutes % 60 < 10 ? "0" + minutes % 60 : minutes % 60);
+                            timezoneTV.setText(timezone);
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(Throwable e) {
+                        Log.e(TAG, e.toString());
+                    }
+                });
+    }
+
+    public void setNotification() {
+        Intent notificationIntent = new Intent("android.media.action.DISPLAY_NOTIFICATION");
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        notificationIntent.addCategory("android.intent.category.DEFAULT");
+        PendingIntent broadcast = PendingIntent.getBroadcast(this,
+                AlarmReceiver.REQUEST_CODE, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        if (alarmManager != null) {
+            alarmManager.cancel(broadcast);
+        }
+
+        double latitude = Double.parseDouble(SharedPrefHelper.getSharedPreferenceString(
+                this, SharedPrefHelper.LATITUDE_PREF_KEY, "-1000"));
+        double longitude = Double.parseDouble(SharedPrefHelper.getSharedPreferenceString(
+                this, SharedPrefHelper.LONGITUDE_PREF_KEY, "-1000"));
+
+        double sunsetTime = new SunTimeCalculator().phaseTimeCalculator(System.currentTimeMillis(),
+                latitude, longitude, false) - 1;
+
+        Intent sendNotifIntent = new Intent("android.media.action.DISPLAY_NOTIFICATION");
+        sendNotifIntent.addCategory("android.intent.category.DEFAULT");
+        PendingIntent sendBroadcast = PendingIntent.getBroadcast(this,
+                AlarmReceiver.REQUEST_CODE, sendNotifIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        Calendar mCalendar = new GregorianCalendar();
+        TimeZone mTimeZone = mCalendar.getTimeZone();
+        int GMTOffset = mTimeZone.getRawOffset();
+
+        long minutes = TimeUnit.MILLISECONDS.toMinutes(GMTOffset);
+        double offset = (double) minutes / 60;
+        double timeInHours = sunsetTime + offset;
+        if (timeInHours >= 24) {
+            timeInHours -= 24;
+        } else if (timeInHours < 0) {
+            timeInHours += 24;
+        }
+
+        Calendar c = Calendar.getInstance();
+        c.setTime(new Date());
+        c.set(Calendar.HOUR_OF_DAY, (int) timeInHours);
+        c.set(Calendar.MINUTE, (int) ((timeInHours - ((int) timeInHours)) * 60));
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+
+        if (alarmManager != null) {
+            Log.d(TAG, "Golden Hour notification set for " + c.getTime().toString());
+            alarmManager.set(AlarmManager.RTC_WAKEUP, c.getTimeInMillis(), sendBroadcast);
+        }
     }
 }

@@ -7,7 +7,7 @@ import io.realm.RealmConfiguration;
 
 public class RealmSingleton {
 
-    private static final int REALM_SCHEMA_VERSION = 1;
+    public static final int REALM_SCHEMA_VERSION = 1;
     private static RealmSingleton mInstance = null;
     private Realm realm;
 
