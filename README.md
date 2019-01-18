@@ -13,11 +13,11 @@
 
 ## Screenshots
 
-<img src="https://raw.githubusercontent.com/joydeepsaha05/android-job-hiring-task/master/assets/Screenshot_1547838662.png" width="350">
+<img src="https://raw.githubusercontent.com/joydeepsaha05/android-job-hiring-task/master/assets/Screenshot_1547838662.png">
 
-<img src="https://raw.githubusercontent.com/joydeepsaha05/android-job-hiring-task/master/assets/Screenshot_1547838685.png" width="350">
+<img src="https://raw.githubusercontent.com/joydeepsaha05/android-job-hiring-task/master/assets/Screenshot_1547838685.png">
 
-<img src="https://raw.githubusercontent.com/joydeepsaha05/android-job-hiring-task/master/assets/Screenshot_1547838749.png" width="350">
+<img src="https://raw.githubusercontent.com/joydeepsaha05/android-job-hiring-task/master/assets/Screenshot_1547838749.png">
 
 ## Download APK
 [Link](https://github.com/joydeepsaha05/android-job-hiring-task/releases/download/1.0/SolarCalculator-v1.apk)
