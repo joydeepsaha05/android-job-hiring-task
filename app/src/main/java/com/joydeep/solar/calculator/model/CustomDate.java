@@ -28,6 +28,10 @@ public class CustomDate {
         return dateFormat.format(date);
     }
 
+    public long getTimeInMillis() {
+        return timeInMillis;
+    }
+
     public String nextDay() {
         timeInMillis += (1000 * 60 * 60 * 24);
         return this.toString();

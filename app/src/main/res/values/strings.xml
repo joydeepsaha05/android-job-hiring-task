@@ -3,4 +3,16 @@
     <string name="title_activity_maps">Map</string>
     <string name="location_access_error">Location access denied!</string>
     <string name="location_search_failure">Failed to find location</string>
+    <string name="search_location">Search Location Here…</string>
+    <string name="all_times_in_utc">(All times in UTC)</string>
+
+    <!--Content Descriptions-->
+    <string name="map_marker">Map marker</string>
+    <string name="gps_icon">GPS Icon</string>
+    <string name="sunset_icon">Sunset icon</string>
+    <string name="sunrise_icon">Sunrise icon</string>
+    <string name="moon_icon">moon_icon</string>
+    <string name="moonrise_icon">Moonrise icon</string>
+    <string name="moonset_icon">Moonset icon</string>
+
 </resources>

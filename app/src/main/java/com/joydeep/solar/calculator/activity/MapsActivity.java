@@ -1,6 +1,5 @@
 package com.joydeep.solar.calculator.activity;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
@@ -11,7 +10,6 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -41,9 +39,13 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.joydeep.solar.calculator.R;
 import com.joydeep.solar.calculator.model.CustomDate;
+import com.joydeep.solar.calculator.util.PermissionHelper;
+import com.joydeep.solar.calculator.util.PhaseTimeCalculator;
 import com.joydeep.solar.calculator.util.UIUtils;
 
 import java.util.List;
+
+import static com.joydeep.solar.calculator.util.PermissionHelper.LOCATION_REQ_CODE;
 
 public class MapsActivity extends FragmentActivity implements
         GoogleApiClient.ConnectionCallbacks,
@@ -56,19 +58,19 @@ public class MapsActivity extends FragmentActivity implements
      * Define a request code to send to Google Play services
      */
     private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
-    private static final int LOCATION_REQ_CODE = 1;
     private static final int REQUEST_LOCATION_CODE = 2;
     private GoogleMap mMap; // Might be null if Google Play services APK is not available
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
     private FusedLocationProviderClient fusedLocationClient;
     private CustomDate customDate;
+    private LatLng currentLatLng = new LatLng(0, 0);
 
     private SupportMapFragment mapFragment;
     private EditText searchEditText;
     private ImageView mapGPSIcon, dateNextImage, datePreviousImage, dateResetImage;
     private ImageView mapMarkerImage;
-    private TextView dateTV;
+    private TextView dateTV, sunriseTV, sunsetTV, moonriseTV, moonsetTV;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +85,10 @@ public class MapsActivity extends FragmentActivity implements
         dateNextImage = findViewById(R.id.image_next_date);
         datePreviousImage = findViewById(R.id.image_previous_date);
         dateResetImage = findViewById(R.id.image_reset_date);
+        sunriseTV = findViewById(R.id.tv_sunrise);
+        sunsetTV = findViewById(R.id.tv_sunset);
+        moonriseTV = findViewById(R.id.tv_moon_rise);
+        moonsetTV = findViewById(R.id.tv_moon_set);
 
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks(this)
@@ -133,6 +139,15 @@ public class MapsActivity extends FragmentActivity implements
             }
         });
 
+        mapGPSIcon.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (new PermissionHelper().checkAndRequestPermissions(MapsActivity.this)) {
+                    getCurrentLocation();
+                }
+            }
+        });
+
         dateTV.setText(customDate.toString());
 
         dateNextImage.setOnClickListener(new View.OnClickListener() {
@@ -177,9 +192,11 @@ public class MapsActivity extends FragmentActivity implements
 
     @Override
     public void onConnected(Bundle bundle) {
-        if (checkAndRequestPermissions() && mMap != null) {
+        if (mMap != null) {
+            if (new PermissionHelper().checkAndRequestPermissions(this)) {
+                showMyLocationButton();
+            }
             mMap.setOnCameraIdleListener(this);
-            showMyLocationButton();
         }
     }
 
@@ -207,15 +224,22 @@ public class MapsActivity extends FragmentActivity implements
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        if (checkAndRequestPermissions() && mGoogleApiClient.isConnected()) {
+        if (new PermissionHelper().checkAndRequestPermissions(this) && mGoogleApiClient.isConnected()) {
             showMyLocationButton();
         }
     }
 
     @Override
     public void onCameraIdle() {
-        LatLng center = mMap.getCameraPosition().target;
-        Log.d(TAG, center.toString());
+        currentLatLng = mMap.getCameraPosition().target;
+        Log.d(TAG, currentLatLng.toString());
+        PhaseTimeCalculator phaseTimeCalculator = new PhaseTimeCalculator();
+        String sunriseTime = phaseTimeCalculator.phaseTimeCalculator(customDate.getTimeInMillis(), currentLatLng.latitude,
+                currentLatLng.longitude, true);
+        sunriseTV.setText(sunriseTime);
+        String sunsetTime = phaseTimeCalculator.phaseTimeCalculator(customDate.getTimeInMillis(), currentLatLng.latitude,
+                currentLatLng.longitude, false);
+        sunsetTV.setText(sunsetTime);
     }
 
     @Override
@@ -230,7 +254,6 @@ public class MapsActivity extends FragmentActivity implements
             } else {
                 Toast.makeText(this, R.string.location_access_error,
                         Toast.LENGTH_LONG).show();
-                finish();
             }
         }
     }
@@ -247,6 +270,17 @@ public class MapsActivity extends FragmentActivity implements
         }
     }
 
+    @SuppressLint("MissingPermission")
+    private void showMyLocationButton() {
+        mMap.setMyLocationEnabled(true);
+
+        View locationButton = ((View) mapFragment.getView().findViewById(Integer.parseInt("1")).
+                getParent()).findViewById(Integer.parseInt("2"));
+        locationButton.setVisibility(View.GONE);
+
+        getCurrentLocation();
+    }
+
     public void onMapSearch(String location) {
         List<Address> addressList;
         Geocoder geocoder = new Geocoder(this);
@@ -259,23 +293,6 @@ public class MapsActivity extends FragmentActivity implements
             Log.e(TAG, e.toString());
             Toast.makeText(this, R.string.location_search_failure, Toast.LENGTH_SHORT).show();
         }
-    }
-
-    @SuppressLint("MissingPermission")
-    private void showMyLocationButton() {
-        mMap.setMyLocationEnabled(true);
-        mapGPSIcon.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (checkAndRequestPermissions()) {
-                    getCurrentLocation();
-                }
-            }
-        });
-
-        View locationButton = ((View) mapFragment.getView().findViewById(Integer.parseInt("1")).
-                getParent()).findViewById(Integer.parseInt("2"));
-        locationButton.setVisibility(View.GONE);
     }
 
     private void turnGPSOn() {
@@ -325,17 +342,5 @@ public class MapsActivity extends FragmentActivity implements
                 });
     }
 
-    private boolean checkAndRequestPermissions() {
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 
-            ActivityCompat.requestPermissions(this, new String[]{
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION}, LOCATION_REQ_CODE);
-            return false;
-        }
-        return true;
-    }
 }
